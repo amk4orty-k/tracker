@@ -34,8 +34,8 @@ DEFAULT_HEADERS = {
 # JWT secret for Supabase Auth (same as SUPABASE_KEY for service role)
 JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", SUPABASE_KEY)
 
-def get_current_user_id(authorization: Optional[str] = Header(None)) -> str:
-	"""Extract user_id from JWT token in Authorization header."""
+def get_current_user_id(authorization: Optional[str] = Header(None)) -> Tuple[str, str]:
+	"""Extract user_id from JWT token in Authorization header and return token."""
 	if not authorization:
 		raise HTTPException(status_code=401, detail="Authorization header missing")
 	
@@ -52,12 +52,12 @@ def get_current_user_id(authorization: Optional[str] = Header(None)) -> str:
 		if not user_id:
 			raise HTTPException(status_code=401, detail="Invalid token: no user_id")
 		
-		return user_id
+		return user_id, token
 	except Exception as e:
 		raise HTTPException(status_code=401, detail=f"Token validation failed: {e}")
 
 
-def _rest_get(table: str, select: str = "*", eq: dict = None, gte: dict = None, order: tuple = None, limit: int = None):
+def _rest_get(table: str, select: str = "*", eq: dict = None, gte: dict = None, order: tuple = None, limit: int = None, user_token: str = None):
 	params = {"select": select}
 	if eq:
 		for k, v in eq.items():
@@ -70,23 +70,30 @@ def _rest_get(table: str, select: str = "*", eq: dict = None, gte: dict = None, 
 	if limit:
 		params["limit"] = str(limit)
 	url = f"{REST_BASE}/{table}"
-	resp = httpx.get(url, params=params, headers=DEFAULT_HEADERS, timeout=10.0)
+	headers = {**DEFAULT_HEADERS}
+	if user_token:
+		headers["Authorization"] = f"Bearer {user_token}"
+	resp = httpx.get(url, params=params, headers=headers, timeout=10.0)
 	resp.raise_for_status()
 	return resp.json()
 
 
-def _rest_post(table: str, row: dict):
+def _rest_post(table: str, row: dict, user_token: str = None):
 	url = f"{REST_BASE}/{table}"
 	headers = {**DEFAULT_HEADERS, "Prefer": "return=representation"}
+	if user_token:
+		headers["Authorization"] = f"Bearer {user_token}"
 	resp = httpx.post(url, json=row, headers=headers, timeout=10.0)
 	resp.raise_for_status()
 	return resp.json()
 
 
-def _rest_patch(table: str, id_value, row: dict):
+def _rest_patch(table: str, id_value, row: dict, user_token: str = None):
 	url = f"{REST_BASE}/{table}"
 	params = {"id": f"eq.{id_value}"}
 	headers = {**DEFAULT_HEADERS, "Prefer": "return=representation"}
+	if user_token:
+		headers["Authorization"] = f"Bearer {user_token}"
 	resp = httpx.patch(url, params=params, json=row, headers=headers, timeout=10.0)
 	resp.raise_for_status()
 	return resp.json()
@@ -113,13 +120,14 @@ class SessionIn(BaseModel):
 
 
 @app.post("/session")
-def log_session(payload: SessionIn, user_id: str = Depends(get_current_user_id)) -> Dict[str, Any]:
+def log_session(payload: SessionIn, auth_data: Tuple[str, str] = Depends(get_current_user_id)) -> Dict[str, Any]:
 	"""
 	Log a workout session and compute session-level metrics.
 	This endpoint inserts a session row and associated sets into Supabase,
 	computes PRs for exercises included in the session, average intensity,
 	counts missed days in the last 7 days, and returns recommendations per exercise.
 	"""
+	user_id, user_token = auth_data
 
 	# Normalize date
 	session_date = payload.date or datetime.utcnow()
@@ -135,7 +143,7 @@ def log_session(payload: SessionIn, user_id: str = Depends(get_current_user_id))
 			session_row["day_type"] = payload.day_type
 		# Mark finished flag if provided
 		session_row["finished"] = bool(payload.finished)
-		sess_rows = _rest_post("sessions", session_row)
+		sess_rows = _rest_post("sessions", session_row, user_token=user_token)
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=f"Failed to insert session: {e}")
 
@@ -157,7 +165,7 @@ def log_session(payload: SessionIn, user_id: str = Depends(get_current_user_id))
 			"intensity": int(s.intensity),
 		}
 		try:
-			r = _rest_post("sets", set_row)
+			r = _rest_post("sets", set_row, user_token=user_token)
 			if isinstance(r, list) and len(r) > 0:
 				inserted_sets.append(r[0])
 		except Exception:
@@ -174,7 +182,7 @@ def log_session(payload: SessionIn, user_id: str = Depends(get_current_user_id))
 	for ex in exercises:
 		try:
 			# Filter by both exercise and user_id
-			r = _rest_get("sets", select="weight,reps,exercise", eq={"exercise": ex, "user_id": user_id}, order=("weight", "desc"), limit=1)
+			r = _rest_get("sets", select="weight,reps,exercise", eq={"exercise": ex, "user_id": user_id}, order=("weight", "desc"), limit=1, user_token=user_token)
 		except Exception:
 			continue
 
@@ -193,7 +201,7 @@ def log_session(payload: SessionIn, user_id: str = Depends(get_current_user_id))
 	today = datetime.utcnow().date()
 	start_date = (today - timedelta(days=6)).isoformat()  # 7-day window including today
 	try:
-		sessions_last_week = _rest_get("sessions", select="date", eq={"user_id": user_id}, gte={"date": start_date})
+		sessions_last_week = _rest_get("sessions", select="date", eq={"user_id": user_id}, gte={"date": start_date}, user_token=user_token)
 	except Exception:
 		sessions_last_week = None
 
@@ -218,7 +226,7 @@ def log_session(payload: SessionIn, user_id: str = Depends(get_current_user_id))
 	}
 	if session_id is not None:
 		try:
-			_rest_patch("sessions", session_id, {"metadata": metrics})
+			_rest_patch("sessions", session_id, {"metadata": metrics}, user_token=user_token)
 		except Exception:
 			# Not fatal if DB doesn't accept extra column
 			pass
@@ -227,7 +235,7 @@ def log_session(payload: SessionIn, user_id: str = Depends(get_current_user_id))
 	recommendations: Dict[str, Any] = {}
 	for ex in exercises:
 		try:
-			r = _rest_get("sets", select="*", eq={"exercise": ex, "user_id": user_id}, order=("id", "desc"), limit=5)
+			r = _rest_get("sets", select="*", eq={"exercise": ex, "user_id": user_id}, order=("id", "desc"), limit=5, user_token=user_token)
 		except Exception:
 			continue
 
