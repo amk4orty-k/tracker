@@ -2,9 +2,13 @@ from typing import Any, Dict, List, Optional, Tuple
 import os
 from datetime import datetime, timedelta
 import jwt
+from dotenv import load_dotenv
 
 from fastapi import FastAPI, HTTPException, Query, Depends, Header
 import httpx
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = FastAPI(title="Gym Tracker")
 
