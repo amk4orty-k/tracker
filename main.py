@@ -1,8 +1,9 @@
 from typing import Any, Dict, List, Optional, Tuple
 import os
 from datetime import datetime, timedelta
+import jwt
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Depends, Header
 import httpx
 
 app = FastAPI(title="Gym Tracker")
@@ -25,6 +26,31 @@ DEFAULT_HEADERS = {
 	"Authorization": f"Bearer {SUPABASE_KEY}",
 	"Content-Type": "application/json",
 }
+
+# JWT secret for Supabase Auth (same as SUPABASE_KEY for service role)
+JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", SUPABASE_KEY)
+
+def get_current_user_id(authorization: Optional[str] = Header(None)) -> str:
+	"""Extract user_id from JWT token in Authorization header."""
+	if not authorization:
+		raise HTTPException(status_code=401, detail="Authorization header missing")
+	
+	if not authorization.startswith("Bearer "):
+		raise HTTPException(status_code=401, detail="Invalid authorization format")
+	
+	token = authorization.replace("Bearer ", "")
+	
+	try:
+		# Decode JWT without verification for service role (already trusted)
+		payload = jwt.decode(token, options={"verify_signature": False})
+		user_id = payload.get("sub")
+		
+		if not user_id:
+			raise HTTPException(status_code=401, detail="Invalid token: no user_id")
+		
+		return user_id
+	except Exception as e:
+		raise HTTPException(status_code=401, detail=f"Token validation failed: {e}")
 
 
 def _rest_get(table: str, select: str = "*", eq: dict = None, gte: dict = None, order: tuple = None, limit: int = None):
@@ -83,7 +109,7 @@ class SessionIn(BaseModel):
 
 
 @app.post("/session")
-def log_session(payload: SessionIn) -> Dict[str, Any]:
+def log_session(payload: SessionIn, user_id: str = Depends(get_current_user_id)) -> Dict[str, Any]:
 	"""
 	Log a workout session and compute session-level metrics.
 	This endpoint inserts a session row and associated sets into Supabase,
@@ -96,7 +122,11 @@ def log_session(payload: SessionIn) -> Dict[str, Any]:
 
 	# Insert session row via PostgREST
 	try:
-		session_row = {"date": session_date.isoformat(), "calories": int(payload.calories or 0)}
+		session_row = {
+			"user_id": user_id,
+			"date": session_date.isoformat(),
+			"calories": int(payload.calories or 0)
+		}
 		if payload.day_type:
 			session_row["day_type"] = payload.day_type
 		# Mark finished flag if provided
@@ -115,6 +145,7 @@ def log_session(payload: SessionIn) -> Dict[str, Any]:
 	for s in payload.sets:
 		set_row = {
 			"session_id": session_id,
+			"user_id": user_id,
 			"exercise": s.exercise,
 			"set_number": s.set_number,
 			"weight": float(s.weight),
@@ -138,7 +169,8 @@ def log_session(payload: SessionIn) -> Dict[str, Any]:
 	pr_by_exercise: Dict[str, Dict[str, Any]] = {}
 	for ex in exercises:
 		try:
-			r = _rest_get("sets", select="weight,reps,exercise", eq={"exercise": ex}, order=("weight", "desc"), limit=1)
+			# Filter by both exercise and user_id
+			r = _rest_get("sets", select="weight,reps,exercise", eq={"exercise": ex, "user_id": user_id}, order=("weight", "desc"), limit=1)
 		except Exception:
 			continue
 
@@ -157,7 +189,7 @@ def log_session(payload: SessionIn) -> Dict[str, Any]:
 	today = datetime.utcnow().date()
 	start_date = (today - timedelta(days=6)).isoformat()  # 7-day window including today
 	try:
-		sessions_last_week = _rest_get("sessions", select="date", gte={"date": start_date})
+		sessions_last_week = _rest_get("sessions", select="date", eq={"user_id": user_id}, gte={"date": start_date})
 	except Exception:
 		sessions_last_week = None
 
@@ -191,7 +223,7 @@ def log_session(payload: SessionIn) -> Dict[str, Any]:
 	recommendations: Dict[str, Any] = {}
 	for ex in exercises:
 		try:
-			r = _rest_get("sets", select="*", eq={"exercise": ex}, order=("id", "desc"), limit=5)
+			r = _rest_get("sets", select="*", eq={"exercise": ex, "user_id": user_id}, order=("id", "desc"), limit=5)
 		except Exception:
 			continue
 
@@ -364,12 +396,12 @@ def _round_to_plate(weight: float) -> float:
 
 
 # --- Extended helpers for improved recommendations ---
-def _get_recent_sets(exercise: str, last_n: int = 50) -> List[Dict[str, Any]]:
+def _get_recent_sets(exercise: str, user_id: str, last_n: int = 50) -> List[Dict[str, Any]]:
 	"""Fetch recent sets for an exercise with a safe upper limit.
 	Default window extended (50) for better trend detection; callers can request fewer.
 	"""
 	try:
-		r = _rest_get("sets", select="*", eq={"exercise": exercise}, order=("id", "desc"), limit=last_n)
+		r = _rest_get("sets", select="*", eq={"exercise": exercise, "user_id": user_id}, order=("id", "desc"), limit=last_n)
 		return r if isinstance(r, list) else []
 	except Exception:
 		return []
@@ -407,11 +439,11 @@ def _get_substitutions(exercise: str) -> List[str]:
 	return SUBSTITUTIONS.get(exercise, [])
 
 
-def _compute_weekly_volume(exercise: str, days: int = 7) -> float:
+def _compute_weekly_volume(exercise: str, user_id: str, days: int = 7) -> float:
 	"""Compute total volume for an exercise over the last `days` days (weight * reps sum)."""
 	try:
 		# fetch more rows and filter by session dates
-		sets = _get_recent_sets(exercise, last_n=200)
+		sets = _get_recent_sets(exercise, user_id, last_n=200)
 	except Exception:
 		return 0.0
 	total = 0.0
@@ -441,6 +473,7 @@ def _compute_weekly_volume(exercise: str, days: int = 7) -> float:
 def calculate_ai_recommendation(
 	sets: List[Dict[str, Any]],
 	exercise: str,
+	user_id: str,
 	last_n: int = 10,
 	target_reps: int = 10,
 ) -> Dict[str, Any]:
@@ -647,7 +680,7 @@ def calculate_ai_recommendation(
 	pr_slope = None
 	try:
 		# estimate PR progression slope from last 6 PR observations
-		pr_rows = _rest_get('sets', select='weight,exercise', eq={'exercise': exercise}, order=('id', 'desc'), limit=12)
+		pr_rows = _rest_get('sets', select='weight,exercise', eq={'exercise': exercise, 'user_id': user_id}, order=('id', 'desc'), limit=12)
 		pr_weights = [float(r.get('weight') or 0) for r in (pr_rows if isinstance(pr_rows, list) else [])]
 		if len(pr_weights) >= 3:
 			# slope between earliest and latest / count
@@ -679,12 +712,66 @@ def calculate_ai_recommendation(
 	}
 
 
+@app.get("/user/profile")
+def get_user_profile(user_id: str = Depends(get_current_user_id)) -> Dict[str, Any]:
+	"""Get user profile with current and ideal stats."""
+	try:
+		r = _rest_get("user_profiles", select="*", eq={"user_id": user_id}, limit=1)
+		if isinstance(r, list) and len(r) > 0:
+			return r[0]
+		# Return defaults if no profile exists
+		return {
+			"user_id": user_id,
+			"current_weight_kg": 70,
+			"height_cm": 175,
+			"ideal_weight_kg": 85,
+			"age": 25,
+			"sex": "male",
+			"theme_color": "#ff2f54"
+		}
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=f"Failed to fetch profile: {e}")
+
+
+@app.put("/user/profile")
+def update_user_profile(profile: Dict[str, Any], user_id: str = Depends(get_current_user_id)) -> Dict[str, Any]:
+	"""Update user profile."""
+	try:
+		# Check if profile exists
+		existing = _rest_get("user_profiles", select="id", eq={"user_id": user_id}, limit=1)
+		
+		profile_data = {
+			"user_id": user_id,
+			"current_weight_kg": profile.get("current_weight_kg", 70),
+			"height_cm": profile.get("height_cm", 175),
+			"ideal_weight_kg": profile.get("ideal_weight_kg", 85),
+			"age": profile.get("age", 25),
+			"sex": profile.get("sex", "male"),
+			"theme_color": profile.get("theme_color", "#ff2f54")
+		}
+		
+		if isinstance(existing, list) and len(existing) > 0:
+			# Update existing
+			profile_id = existing[0]["id"]
+			r = _rest_patch("user_profiles", profile_id, profile_data)
+		else:
+			# Create new
+			r = _rest_post("user_profiles", profile_data)
+		
+		if isinstance(r, list) and len(r) > 0:
+			return r[0]
+		return profile_data
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=f"Failed to update profile: {e}")
+
+
 @app.get("/recommendation_dynamic")
 def recommendation_dynamic(
 	exercise: str = Query(..., description="Exercise name to base recommendation on"),
 	last_n: int = Query(5, ge=1, le=50, description="Number of last sets to consider"),
 	intensity_feedback: int = Query(0, ge=0, le=10, description="Optional RPE-style feedback (0-10)"),
 	target_reps: int = Query(10, ge=1, le=50, description="Target reps to guide recommendations"),
+	user_id: str = Depends(get_current_user_id),
 ) -> Dict[str, Any]:
 	"""
 	Dynamic recommendation endpoint.
@@ -698,7 +785,7 @@ def recommendation_dynamic(
 
 	# Fetch recent sets for the exercise via PostgREST (extend history by default)
 	try:
-		data = _get_recent_sets(exercise, last_n=max(20, last_n))
+		data = _get_recent_sets(exercise, user_id, last_n=max(20, last_n))
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=f"Database query failed: {e}")
 
@@ -712,7 +799,7 @@ def recommendation_dynamic(
 		rec_reps = int(rec["recommended_reps"])
 		base_note = rec.get("note", "")
 		# AI-enhanced recommendation
-		ai_rec = calculate_ai_recommendation(data, exercise=exercise, last_n=last_n, target_reps=target_reps)
+		ai_rec = calculate_ai_recommendation(data, exercise=exercise, user_id=user_id, last_n=last_n, target_reps=target_reps)
 		ai_weight = ai_rec.get("ai_weight")
 		ai_reps = ai_rec.get("ai_reps")
 		ais_note = ai_rec.get("ai_note")
@@ -762,7 +849,7 @@ def recommendation_dynamic(
 	# Fetch current PR for the exercise (best weight)
 	pr_weight = None
 	try:
-		pr_row = _rest_get("sets", select="weight", eq={"exercise": exercise}, order=("weight", "desc"), limit=1)
+		pr_row = _rest_get("sets", select="weight", eq={"exercise": exercise, "user_id": user_id}, order=("weight", "desc"), limit=1)
 		if isinstance(pr_row, list) and len(pr_row) > 0:
 			pr_weight = float(pr_row[0].get("weight") or 0.0)
 	except Exception:
@@ -796,13 +883,17 @@ def recommendation_dynamic(
 
 
 @app.get("/analytics")
-def analytics(exercise: str = Query(..., description="Exercise name"), last_n: int = Query(30, ge=1, le=200)) -> Dict[str, Any]:
+def analytics(
+	exercise: str = Query(..., description="Exercise name"),
+	last_n: int = Query(30, ge=1, le=200),
+	user_id: str = Depends(get_current_user_id),
+) -> Dict[str, Any]:
 	"""
 	Return simple progression data for an exercise: recent sets with date, weight, reps, intensity
 	and a running PR value. This data is intended for frontend charts.
 	"""
 	try:
-		r = _rest_get("sets", select="*", eq={"exercise": exercise}, order=("id", "desc"), limit=last_n)
+		r = _rest_get("sets", select="*", eq={"exercise": exercise, "user_id": user_id}, order=("id", "desc"), limit=last_n)
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=f"Failed to query sets: {e}")
 

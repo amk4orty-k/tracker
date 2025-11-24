@@ -1,6 +1,10 @@
 import React, { CSSProperties, useEffect, useState } from 'react'
+import { useRouter } from 'next/router'
 import axios from 'axios'
 import StatsPanel from '../components/StatsPanel'
+import SettingsPanel from '../components/SettingsPanel'
+import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../lib/supabaseClient'
 
 type RuleRecommendation = {
   recommended_weight: number
@@ -91,6 +95,11 @@ type UserProfile = {
   weightKg: number
   heightCm: number
   maintenanceCalories: number
+  idealWeightKg?: number
+  current_weight_kg?: number
+  height_cm?: number
+  ideal_weight_kg?: number
+  theme_color?: string
 }
 
 const IconCalendarSpark = ({ size = 18, ...props }: IconProps) => (
@@ -236,6 +245,9 @@ function defaultSetsForExercise(ex: string) {
 }
 
 export default function Home() {
+  const router = useRouter()
+  const { session, user, loading, signOut } = useAuth()
+
   const [rows, setRows] = useState<ExerciseRow[]>([])
   const [recs, setRecs] = useState<Record<string, Recommendation>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -257,87 +269,24 @@ export default function Home() {
   const [confirmSkipFor, setConfirmSkipFor] = useState<string | null>(null)
   const [celebrateMilestone, setCelebrateMilestone] = useState<number | null>(null)
   const [idealWeightGoal, setIdealWeightGoal] = useState<number | null>(null)
+  const [showSettings, setShowSettings] = useState(false)
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
 
-  const baseFieldStyle: CSSProperties = {
-    background: 'rgba(8, 14, 26, 0.55)',
-    border: '1px solid rgba(255,255,255,0.14)',
-    borderRadius: 10,
-    padding: '8px 10px',
-    color: '#ecf6ff',
-    fontSize: 13,
-  }
-
+  // Redirect to login if not authenticated
   useEffect(() => {
-    const profile = getUserProfile()
-    const initial = buildRowsForDay(selectedDay, profile)
-
-    if (!initial.length) {
-      setRows([])
-      setRecs({})
-      return
+    if (!loading && !session) {
+      router.push('/login')
     }
+  }, [loading, session, router])
 
-    setRows(initial)
-    if (Object.keys(poTargets).length === 0) {
-      persistPoTargets(baselinePoTargets(profile))
+  // Load user profile on mount
+  useEffect(() => {
+    if (!loading && session) {
+      loadUserProfile()
     }
+  }, [loading, session])
 
-    fetchRecommendations(initial)
-  }, [selectedDay])
-
-  // Simple user profile - in future read from user settings or backend
-  function getUserProfile(): UserProfile {
-    return { sex: 'male', age: 20, weightKg: 70, heightCm: 188, maintenanceCalories: 3000 }
-  }
-
-  function getIdealProfile(): UserProfile {
-    return { sex: 'male', age: 20, weightKg: 85, heightCm: 188, maintenanceCalories: 3400 }
-  }
-
-  function computeInitialWeightForExercise(exercise: string, profile: UserProfile) {
-    // Base multipliers by exercise type (conservative initial estimates)
-    const bw = profile.weightKg || 70
-    const map: Record<string, number> = {
-      // chest/presses
-      'Incline Dumbbell Press': 0.35, // per DB per hand; we'll return total per hand equivalent
-      'Smith Machine Press': 0.6,
-      'Pec Deck / Machine Fly': 0.25,
-      'Cable Fly (Low-to-High)': 0.2,
-      // back
-      'Romanian Deadlift': 1.1,
-      'Bent-over Row': 0.7,
-      'Lat Pulldown': 0.6,
-      'Seated Cable Row': 0.6,
-      // legs
-      'Leg Extension': 0.45,
-      'Smith Machine Squat': 1.2,
-      'Smith Machine Lunges': 0.6,
-      'Seated Leg Curl': 0.4,
-      'Standing Calf Raise': 0.25,
-      // shoulders/arms
-      'Overhead Press': 0.45,
-      'Lateral Raises': 0.08,
-      'Front Raises': 0.08,
-      'Rear Delt Fly': 0.12,
-      'Barbell Curl': 0.18,
-      'Dumbbell Hammer Curl': 0.12,
-      'Triceps Pushdown': 0.12,
-      'Overhead Triceps Extension': 0.12,
-      // fallbacks
-    }
-    const factor = map[exercise] ?? 0.25
-    // nudge estimate slightly upward to stimulate adaptation (push comfort zone)
-    const raw = Math.max(2.5, bw * factor * 1.08)
-    const estimated = Math.round(raw * 2) / 2
-    return estimated
-  }
-
-  function seedPoForExercise(exercise: string, profile: UserProfile) {
-    // Conservative kg/week targets by exercise complexity
-    const compounds = ['Incline Dumbbell Press','Smith Machine Press','Romanian Deadlift','Bent-over Row','Smith Machine Squat','Overhead Press']
-    if (compounds.includes(exercise)) return 0.5
-    return 0.25
-  }
+  // Load from localStorage on mount
   useEffect(() => {
     try {
       const rawWeights = localStorage.getItem('weeklyWeights')
@@ -384,38 +333,17 @@ export default function Home() {
 
       const rawIdeal = localStorage.getItem('idealWeightGoal')
       if (rawIdeal) setIdealWeightGoal(Number(rawIdeal))
-      else setIdealWeightGoal(getIdealProfile().weightKg)
 
       const rawSurplus = localStorage.getItem('calorieSurplus')
       if (rawSurplus) setCalorieSurplus(Number(rawSurplus))
-
-      const snap = {
-        profile: getUserProfile(),
-        idealProfile: getIdealProfile(),
-        idealWeightGoal: rawIdeal ? Number(rawIdeal) : getIdealProfile().weightKg,
-        ts: new Date().toISOString(),
-      }
-      enqueueInstrumentEvent({ type: 'profile_snapshot', payload: snap })
-      flushInstrumentQueue()
     } catch (e) {
       console.warn('initial load failed', e)
     }
   }, [])
 
-  function markFinishedFor(dateStr: string) {
-    const next = { ...finishedSessions, [dateStr]: true }
-    setFinishedSessions(next)
-    try { localStorage.setItem('finishedSessions', JSON.stringify(next)) } catch(e){ console.warn(e) }
-  }
-
-  function markSkippedFor(dateStr: string) {
-    const next = { ...skippedSessions, [dateStr]: true }
-    setSkippedSessions(next)
-    try { localStorage.setItem('skippedSessions', JSON.stringify(next)) } catch(e){ console.warn(e) }
-  }
-
-  function computeStreak() {
-    // Count consecutive training (non-Rest) days up to today that are finished
+  // Compute streak when finishedSessions changes
+  useEffect(() => {
+    // Count consecutive training days up to today that are finished
     let count = 0
     const today = new Date()
     for (let d = 0; d < 365; d++) {
@@ -424,10 +352,7 @@ export default function Home() {
       const dateStr = dd.toISOString().slice(0,10)
       const dayIndex = (dd.getDay() + 6) % 7
       const dayType = dayTypes[dayIndex]
-      if (dayType === 'Rest') {
-        // skip rest days when evaluating streak continuity
-        continue
-      }
+      if (dayType === 'Rest') continue
       if (finishedSessions[dateStr]) {
         count += 1
       } else {
@@ -445,13 +370,9 @@ export default function Home() {
         setStreakBest(prevBest)
       }
     } catch (e) { console.warn('streak persist failed', e) }
-  }
-
-  useEffect(() => {
-    computeStreak()
   }, [finishedSessions])
 
-  // celebrate milestones (3,7,14,30) once
+  // Celebrate milestones (3,7,14,30) once
   useEffect(() => {
     const milestones = [3,7,14,30]
     try {
@@ -464,6 +385,213 @@ export default function Home() {
       }
     } catch (e) { console.warn('celebrate check failed', e) }
   }, [streakCurrent])
+
+  // Initialize selectedDateStr to today if not set
+  useEffect(() => {
+    if (!selectedDateStr) {
+      const today = new Date().toISOString().slice(0, 10)
+      setSelectedDateStr(today)
+    }
+  }, [selectedDateStr])
+
+  // Build rows when selectedDay changes
+  useEffect(() => {
+    const profile = getUserProfile()
+    const initial = buildRowsForDay(selectedDay, profile)
+
+    if (!initial.length) {
+      setRows([])
+      setRecs({})
+      return
+    }
+
+    setRows(initial)
+    if (Object.keys(poTargets).length === 0) {
+      persistPoTargets(baselinePoTargets(profile))
+    }
+
+    fetchRecommendations(initial)
+  }, [selectedDay])
+
+  async function loadUserProfile() {
+    try {
+      const headers = await getAuthHeaders()
+      const res = await axios.get('/api/profile_proxy', { headers })
+      setUserProfile(res.data)
+      // Apply theme color
+      const hue = colorToHue(res.data.theme_color)
+      document.documentElement.style.setProperty('--theme-hue', hue.toString())
+    } catch (e) {
+      console.error('Failed to load profile', e)
+      // Set defaults
+      setUserProfile({
+        sex: 'male',
+        age: 25,
+        weightKg: 70,
+        heightCm: 175,
+        maintenanceCalories: 3000,
+        idealWeightKg: 85
+      })
+    }
+  }
+
+  function colorToHue(hex: string): number {
+    // Map common colors to hue values
+    const colorMap: Record<string, number> = {
+      '#ff2f54': 348, // Crimson (default)
+      '#00bfff': 200, // Electric Blue
+      '#ba55d3': 280, // Purple
+      '#50c878': 140, // Emerald
+      '#ff8c42': 30,  // Orange
+      '#ff69b4': 320, // Pink
+      '#00e5ff': 180, // Cyan
+      '#32cd32': 75,  // Lime
+    }
+    return colorMap[hex] || 348
+  }
+
+  const baseFieldStyle: CSSProperties = {
+    background: 'rgba(8, 14, 26, 0.55)',
+    border: '1px solid rgba(255,255,255,0.14)',
+    borderRadius: 10,
+    padding: '8px 10px',
+    color: '#ecf6ff',
+    fontSize: 13,
+  }
+
+  // Helper to get auth headers for API calls
+  const getAuthHeaders = async () => {
+    if (!session) return {}
+    const { data: { session: currentSession } } = await supabase.auth.getSession()
+    return currentSession?.access_token ? { Authorization: `Bearer ${currentSession.access_token}` } : {}
+  }
+
+  // Show loading state while checking auth
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 100%)',
+        color: '#dc143c',
+        fontSize: '1.5rem',
+      }}>
+        Loading...
+      </div>
+    )
+  }
+
+  // Don't render anything if not authenticated (router will redirect)
+  if (!session) {
+    return null
+  }
+
+  // Simple user profile - now loaded from backend
+  function getUserProfile(): UserProfile {
+    if (userProfile) {
+      return {
+        sex: userProfile.sex || 'male',
+        age: userProfile.age || 25,
+        weightKg: userProfile.current_weight_kg || 70,
+        heightCm: userProfile.height_cm || 175,
+        maintenanceCalories: calculateMaintenanceCalories(userProfile)
+      }
+    }
+    return { sex: 'male', age: 25, weightKg: 70, heightCm: 175, maintenanceCalories: 3000 }
+  }
+
+  function getIdealProfile(): UserProfile {
+    if (userProfile) {
+      return {
+        sex: userProfile.sex || 'male',
+        age: userProfile.age || 25,
+        weightKg: userProfile.ideal_weight_kg || 85,
+        heightCm: userProfile.height_cm || 175,
+        maintenanceCalories: calculateMaintenanceCalories({
+          ...userProfile,
+          current_weight_kg: userProfile.ideal_weight_kg
+        })
+      }
+    }
+    return { sex: 'male', age: 25, weightKg: 85, heightCm: 175, maintenanceCalories: 3400 }
+  }
+
+  function calculateMaintenanceCalories(profile: any): number {
+    const weight = profile.current_weight_kg || profile.weightKg || 70
+    const height = profile.height_cm || profile.heightCm || 175
+    const age = profile.age || 25
+    const sex = profile.sex || 'male'
+    
+    // Mifflin-St Jeor Equation
+    let bmr: number
+    if (sex === 'male') {
+      bmr = 10 * weight + 6.25 * height - 5 * age + 5
+    } else {
+      bmr = 10 * weight + 6.25 * height - 5 * age - 161
+    }
+    
+    // Activity factor for moderate activity (gym 4-5x/week)
+    return Math.round(bmr * 1.55)
+  }
+
+  function computeInitialWeightForExercise(exercise: string, profile: UserProfile) {
+    // Base multipliers by exercise type (conservative initial estimates)
+    const bw = profile.weightKg || 70
+    const map: Record<string, number> = {
+      // chest/presses
+      'Incline Dumbbell Press': 0.35, // per DB per hand; we'll return total per hand equivalent
+      'Smith Machine Press': 0.6,
+      'Pec Deck / Machine Fly': 0.25,
+      'Cable Fly (Low-to-High)': 0.2,
+      // back
+      'Romanian Deadlift': 1.1,
+      'Bent-over Row': 0.7,
+      'Lat Pulldown': 0.6,
+      'Seated Cable Row': 0.6,
+      // legs
+      'Leg Extension': 0.45,
+      'Smith Machine Squat': 1.2,
+      'Smith Machine Lunges': 0.6,
+      'Seated Leg Curl': 0.4,
+      'Standing Calf Raise': 0.25,
+      // shoulders/arms
+      'Overhead Press': 0.45,
+      'Lateral Raises': 0.08,
+      'Front Raises': 0.08,
+      'Rear Delt Fly': 0.12,
+      'Barbell Curl': 0.18,
+      'Dumbbell Hammer Curl': 0.12,
+      'Triceps Pushdown': 0.12,
+      'Overhead Triceps Extension': 0.12,
+      // fallbacks
+    }
+    const factor = map[exercise] ?? 0.25
+    // nudge estimate slightly upward to stimulate adaptation (push comfort zone)
+    const raw = Math.max(2.5, bw * factor * 1.08)
+    const estimated = Math.round(raw * 2) / 2
+    return estimated
+  }
+
+  function seedPoForExercise(exercise: string, profile: UserProfile) {
+    // Conservative kg/week targets by exercise complexity
+    const compounds = ['Incline Dumbbell Press','Smith Machine Press','Romanian Deadlift','Bent-over Row','Smith Machine Squat','Overhead Press']
+    if (compounds.includes(exercise)) return 0.5
+    return 0.25
+  }
+
+  function markFinishedFor(dateStr: string) {
+    const next = { ...finishedSessions, [dateStr]: true }
+    setFinishedSessions(next)
+    try { localStorage.setItem('finishedSessions', JSON.stringify(next)) } catch(e){ console.warn(e) }
+  }
+
+  function markSkippedFor(dateStr: string) {
+    const next = { ...skippedSessions, [dateStr]: true }
+    setSkippedSessions(next)
+    try { localStorage.setItem('skippedSessions', JSON.stringify(next)) } catch(e){ console.warn(e) }
+  }
 
   function saveDailyCaloriesFor(dateStr: string, kcal: number) {
     const next = { ...dailyCalories, [dateStr]: kcal }
@@ -620,7 +748,8 @@ export default function Home() {
 
   async function fetchRecommendations(currentRows: ExerciseRow[]) {
     try {
-      const calls = currentRows.map((r) => axios.get('/api/recommendation_proxy', { params: { exercise: r.exercise } }))
+      const headers = await getAuthHeaders()
+      const calls = currentRows.map((r) => axios.get('/api/recommendation_proxy', { params: { exercise: r.exercise }, headers }))
       const results = await Promise.allSettled(calls)
       const next: Record<string, Recommendation> = {}
       results.forEach((res, idx) => {
@@ -663,13 +792,6 @@ export default function Home() {
     setSessionActive(false)
     setSessionFinished(false)
   }
-
-  useEffect(() => {
-    if (!selectedDateStr) {
-      const today = new Date().toISOString().slice(0, 10)
-      setSelectedDateStr(today)
-    }
-  }, [selectedDateStr])
 
   function formatDateLabel(dateStr: string | null) {
     if (!dateStr) return 'This week'
@@ -933,7 +1055,8 @@ export default function Home() {
       }
 
       const body = { date: new Date().toISOString(), calories: 0, day_type: selectedDay, finished: true, sets: enrichedSets, rec_meta: recs }
-      const res = await axios.post('/api/session_proxy', body)
+      const headers = await getAuthHeaders()
+      const res = await axios.post('/api/session_proxy', body, { headers })
       const data = res.data
       if (data && data.recommendations) setRecs(data.recommendations as Record<string, Recommendation>)
       setSessionFinished(true)
@@ -1006,8 +1129,33 @@ export default function Home() {
                 resetPlannerState()
               }}
             >Reset planner</button>
+            <button
+              className="btn btn-ghost"
+              onClick={() => setShowSettings(true)}
+              style={{ fontWeight: 'bold' }}
+            >⚙️ Settings</button>
           </div>
         </header>
+
+        {showSettings && (
+          <SettingsPanel
+            onClose={() => setShowSettings(false)}
+            onProfileUpdate={(profile) => {
+              setUserProfile({
+                sex: profile.sex,
+                age: profile.age,
+                weightKg: profile.current_weight_kg,
+                heightCm: profile.height_cm,
+                maintenanceCalories: calculateMaintenanceCalories(profile),
+                idealWeightKg: profile.ideal_weight_kg,
+                current_weight_kg: profile.current_weight_kg,
+                height_cm: profile.height_cm,
+                ideal_weight_kg: profile.ideal_weight_kg,
+                theme_color: profile.theme_color
+              } as any)
+            }}
+          />
+        )}
 
         {celebrateMilestone ? (
           <div className="glass" style={{ padding: 16, border: '1px solid rgba(255,255,255,0.2)' }}>
