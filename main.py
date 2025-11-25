@@ -5,6 +5,7 @@ import jwt
 from dotenv import load_dotenv
 
 from fastapi import FastAPI, HTTPException, Query, Depends, Header
+from pydantic import BaseModel
 import httpx
 
 # Load environment variables from .env file
@@ -96,9 +97,6 @@ def _rest_patch(table: str, id_value, row: dict, user_token: str = None):
 
 
 # Pydantic models for session logging
-from pydantic import BaseModel
-
-
 class SetIn(BaseModel):
 	exercise: str
 	set_number: int
@@ -129,6 +127,7 @@ def log_session(payload: SessionIn, auth_data: Tuple[str, str] = Depends(get_cur
 	session_date = payload.date or datetime.utcnow()
 
 	# Insert session row via PostgREST
+	# NOTE: User's DB schema does not have 'finished' column, so we don't include it
 	try:
 		session_row = {
 			"user_id": user_id,
@@ -137,8 +136,7 @@ def log_session(payload: SessionIn, auth_data: Tuple[str, str] = Depends(get_cur
 		}
 		if payload.day_type:
 			session_row["day_type"] = payload.day_type
-		# Mark finished flag if provided
-		session_row["finished"] = bool(payload.finished)
+		
 		sess_rows = _rest_post("sessions", session_row, user_token=user_token)
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=f"Failed to insert session: {e}")
@@ -203,14 +201,13 @@ def log_session(payload: SessionIn, auth_data: Tuple[str, str] = Depends(get_cur
 
 	days_with_sessions = set()
 	if sessions_last_week is not None:
-		data = sessions_last_week.data if hasattr(sessions_last_week, "data") else sessions_last_week.get("data")
-		if data:
-			for row in data:
-				try:
-					d = datetime.fromisoformat(row.get("date")).date()
-					days_with_sessions.add(d)
-				except Exception:
-					continue
+		data = sessions_last_week if isinstance(sessions_last_week, list) else []
+		for row in data:
+			try:
+				d = datetime.fromisoformat(row.get("date")).date()
+				days_with_sessions.add(d)
+			except Exception:
+				continue
 
 	missed_days_last_7 = 7 - len(days_with_sessions)
 
@@ -238,7 +235,7 @@ def log_session(payload: SessionIn, auth_data: Tuple[str, str] = Depends(get_cur
 		sets_data = r if isinstance(r, list) else None
 		if sets_data:
 			rule_rec = calculate_dynamic_recommendation(sets_data)
-			ai_rec = calculate_ai_recommendation(sets_data, exercise=ex, last_n=5, target_reps=10)
+			ai_rec = calculate_ai_recommendation(sets_data, exercise=ex, user_id=user_id, last_n=5, target_reps=10)
 			recommendations[ex] = {"rule": rule_rec, "ai": ai_rec}
 
 	return {
@@ -721,10 +718,11 @@ def calculate_ai_recommendation(
 
 
 @app.get("/user/profile")
-def get_user_profile(user_id: str = Depends(get_current_user_id)) -> Dict[str, Any]:
+def get_user_profile(auth_data: Tuple[str, str] = Depends(get_current_user_id)) -> Dict[str, Any]:
 	"""Get user profile with current and ideal stats."""
+	user_id, user_token = auth_data
 	try:
-		r = _rest_get("user_profiles", select="*", eq={"user_id": user_id}, limit=1)
+		r = _rest_get("user_profiles", select="*", eq={"user_id": user_id}, limit=1, user_token=user_token)
 		if isinstance(r, list) and len(r) > 0:
 			return r[0]
 		# Return defaults if no profile exists
@@ -742,11 +740,12 @@ def get_user_profile(user_id: str = Depends(get_current_user_id)) -> Dict[str, A
 
 
 @app.put("/user/profile")
-def update_user_profile(profile: Dict[str, Any], user_id: str = Depends(get_current_user_id)) -> Dict[str, Any]:
+def update_user_profile(profile: Dict[str, Any], auth_data: Tuple[str, str] = Depends(get_current_user_id)) -> Dict[str, Any]:
 	"""Update user profile."""
+	user_id, user_token = auth_data
 	try:
 		# Check if profile exists
-		existing = _rest_get("user_profiles", select="id", eq={"user_id": user_id}, limit=1)
+		existing = _rest_get("user_profiles", select="id", eq={"user_id": user_id}, limit=1, user_token=user_token)
 		
 		profile_data = {
 			"user_id": user_id,
@@ -761,10 +760,10 @@ def update_user_profile(profile: Dict[str, Any], user_id: str = Depends(get_curr
 		if isinstance(existing, list) and len(existing) > 0:
 			# Update existing
 			profile_id = existing[0]["id"]
-			r = _rest_patch("user_profiles", profile_id, profile_data)
+			r = _rest_patch("user_profiles", profile_id, profile_data, user_token=user_token)
 		else:
 			# Create new
-			r = _rest_post("user_profiles", profile_data)
+			r = _rest_post("user_profiles", profile_data, user_token=user_token)
 		
 		if isinstance(r, list) and len(r) > 0:
 			return r[0]
@@ -779,7 +778,7 @@ def recommendation_dynamic(
 	last_n: int = Query(5, ge=1, le=50, description="Number of last sets to consider"),
 	intensity_feedback: int = Query(0, ge=0, le=10, description="Optional RPE-style feedback (0-10)"),
 	target_reps: int = Query(10, ge=1, le=50, description="Target reps to guide recommendations"),
-	user_id: str = Depends(get_current_user_id),
+	auth_data: Tuple[str, str] = Depends(get_current_user_id),
 ) -> Dict[str, Any]:
 	"""
 	Dynamic recommendation endpoint.
@@ -790,6 +789,7 @@ def recommendation_dynamic(
 	Optional `intensity_feedback` can be provided (0-10) to bias the recommendation
 	slightly based on how hard the user felt the set was.
 	"""
+	user_id, user_token = auth_data
 
 	# Fetch recent sets for the exercise via PostgREST (extend history by default)
 	try:
@@ -857,7 +857,7 @@ def recommendation_dynamic(
 	# Fetch current PR for the exercise (best weight)
 	pr_weight = None
 	try:
-		pr_row = _rest_get("sets", select="weight", eq={"exercise": exercise, "user_id": user_id}, order=("weight", "desc"), limit=1)
+		pr_row = _rest_get("sets", select="weight", eq={"exercise": exercise, "user_id": user_id}, order=("weight", "desc"), limit=1, user_token=user_token)
 		if isinstance(pr_row, list) and len(pr_row) > 0:
 			pr_weight = float(pr_row[0].get("weight") or 0.0)
 	except Exception:
@@ -894,14 +894,15 @@ def recommendation_dynamic(
 def analytics(
 	exercise: str = Query(..., description="Exercise name"),
 	last_n: int = Query(30, ge=1, le=200),
-	user_id: str = Depends(get_current_user_id),
+	auth_data: Tuple[str, str] = Depends(get_current_user_id),
 ) -> Dict[str, Any]:
 	"""
 	Return simple progression data for an exercise: recent sets with date, weight, reps, intensity
 	and a running PR value. This data is intended for frontend charts.
 	"""
+	user_id, user_token = auth_data
 	try:
-		r = _rest_get("sets", select="*", eq={"exercise": exercise, "user_id": user_id}, order=("id", "desc"), limit=last_n)
+		r = _rest_get("sets", select="*", eq={"exercise": exercise, "user_id": user_id}, order=("id", "desc"), limit=last_n, user_token=user_token)
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=f"Failed to query sets: {e}")
 
@@ -923,7 +924,7 @@ def analytics(
 		calories = None
 		if session_id is not None:
 			try:
-				sess = _rest_get("sessions", select="date,calories", eq={"id": session_id}, limit=1)
+				sess = _rest_get("sessions", select="date,calories", eq={"id": session_id}, limit=1, user_token=user_token)
 				sessdata = sess if isinstance(sess, list) else None
 				if sessdata and len(sessdata) > 0:
 					date_str = sessdata[0].get("date")
