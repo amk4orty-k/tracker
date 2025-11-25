@@ -12,18 +12,13 @@ load_dotenv()
 
 app = FastAPI(title="Gym Tracker")
 
-# Create Supabase client from environment variables. The project context
-# indicated a Supabase client is available; we create it here from
-# SUPABASE_URL and SUPABASE_KEY so the endpoint can query the DB. Make
-# sure these environment variables are set before running the app.
+# Create Supabase client from environment variables.
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 if not SUPABASE_URL or not SUPABASE_KEY:
 	raise RuntimeError("SUPABASE_URL and SUPABASE_KEY must be set in environment")
 
-# Use direct PostgREST HTTP access instead of the supabase client to avoid
-# dependency conflicts with pydantic versions. This uses the project's
-# REST endpoint at <SUPABASE_URL>/rest/v1 and the service key for auth.
+# Use direct PostgREST HTTP access
 REST_BASE = SUPABASE_URL.rstrip("/") + "/rest/v1"
 DEFAULT_HEADERS = {
 	"apikey": SUPABASE_KEY,
@@ -31,7 +26,7 @@ DEFAULT_HEADERS = {
 	"Content-Type": "application/json",
 }
 
-# JWT secret for Supabase Auth (same as SUPABASE_KEY for service role)
+# JWT secret for Supabase Auth
 JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", SUPABASE_KEY)
 
 def get_current_user_id(authorization: Optional[str] = Header(None)) -> Tuple[str, str]:
@@ -45,8 +40,9 @@ def get_current_user_id(authorization: Optional[str] = Header(None)) -> Tuple[st
 	token = authorization.replace("Bearer ", "")
 	
 	try:
-		# Decode JWT without verification for service role (already trusted)
-		payload = jwt.decode(token, options={"verify_signature": False})
+		# Decode JWT with verification if secret is available
+		options = {"verify_signature": True, "verify_aud": False}
+		payload = jwt.decode(token, key=JWT_SECRET, algorithms=["HS256"], options=options)
 		user_id = payload.get("sub")
 		
 		if not user_id:

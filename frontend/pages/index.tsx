@@ -349,7 +349,7 @@ export default function Home() {
     for (let d = 0; d < 365; d++) {
       const dd = new Date()
       dd.setDate(today.getDate() - d)
-      const dateStr = dd.toISOString().slice(0,10)
+      const dateStr = dd.toISOString().slice(0, 10)
       const dayIndex = (dd.getDay() + 6) % 7
       const dayType = dayTypes[dayIndex]
       if (dayType === 'Rest') continue
@@ -374,7 +374,7 @@ export default function Home() {
 
   // Celebrate milestones (3,7,14,30) once
   useEffect(() => {
-    const milestones = [3,7,14,30]
+    const milestones = [3, 7, 14, 30]
     try {
       const lastRaw = localStorage.getItem('lastCelebrated') || '0'
       const last = Number(lastRaw)
@@ -523,7 +523,7 @@ export default function Home() {
     const height = profile.height_cm || profile.heightCm || 175
     const age = profile.age || 25
     const sex = profile.sex || 'male'
-    
+
     // Mifflin-St Jeor Equation
     let bmr: number
     if (sex === 'male') {
@@ -531,7 +531,7 @@ export default function Home() {
     } else {
       bmr = 10 * weight + 6.25 * height - 5 * age - 161
     }
-    
+
     // Activity factor for moderate activity (gym 4-5x/week)
     return Math.round(bmr * 1.55)
   }
@@ -576,7 +576,7 @@ export default function Home() {
 
   function seedPoForExercise(exercise: string, profile: UserProfile) {
     // Conservative kg/week targets by exercise complexity
-    const compounds = ['Incline Dumbbell Press','Smith Machine Press','Romanian Deadlift','Bent-over Row','Smith Machine Squat','Overhead Press']
+    const compounds = ['Incline Dumbbell Press', 'Smith Machine Press', 'Romanian Deadlift', 'Bent-over Row', 'Smith Machine Squat', 'Overhead Press']
     if (compounds.includes(exercise)) return 0.5
     return 0.25
   }
@@ -584,19 +584,19 @@ export default function Home() {
   function markFinishedFor(dateStr: string) {
     const next = { ...finishedSessions, [dateStr]: true }
     setFinishedSessions(next)
-    try { localStorage.setItem('finishedSessions', JSON.stringify(next)) } catch(e){ console.warn(e) }
+    try { localStorage.setItem('finishedSessions', JSON.stringify(next)) } catch (e) { console.warn(e) }
   }
 
   function markSkippedFor(dateStr: string) {
     const next = { ...skippedSessions, [dateStr]: true }
     setSkippedSessions(next)
-    try { localStorage.setItem('skippedSessions', JSON.stringify(next)) } catch(e){ console.warn(e) }
+    try { localStorage.setItem('skippedSessions', JSON.stringify(next)) } catch (e) { console.warn(e) }
   }
 
   function saveDailyCaloriesFor(dateStr: string, kcal: number) {
     const next = { ...dailyCalories, [dateStr]: kcal }
     setDailyCalories(next)
-    try { localStorage.setItem('dailyCalories', JSON.stringify(next)) } catch(e){ console.warn(e) }
+    try { localStorage.setItem('dailyCalories', JSON.stringify(next)) } catch (e) { console.warn(e) }
   }
 
   function baselinePoTargets(profile: UserProfile) {
@@ -685,7 +685,7 @@ export default function Home() {
     for (let d = 1; d < 30; d++) {
       const dd = new Date()
       dd.setDate(today.getDate() - d)
-      const dateStr = dd.toISOString().slice(0,10)
+      const dateStr = dd.toISOString().slice(0, 10)
       const dayIndex = (dd.getDay() + 6) % 7
       const dayType = dayTypes[dayIndex]
       if (dayType === 'Rest') continue
@@ -698,7 +698,7 @@ export default function Home() {
     try {
       const items = Object.keys(recs).map((ex) => ({ exercise: ex, weight: (recs[ex]?.ai?.ai_weight as number) || (recs[ex]?.rule?.recommended_weight as number) || 0 }))
       const filtered = items.filter(i => i.weight && i.weight > 0)
-      filtered.sort((a,b) => (b.weight as number) - (a.weight as number))
+      filtered.sort((a, b) => (b.weight as number) - (a.weight as number))
       return filtered.slice(0, limit)
     } catch (e) { return [] }
   }
@@ -781,7 +781,7 @@ export default function Home() {
     return 'Low'
   }
 
-  function openDay(day: string, explicitDate?: string){
+  function openDay(day: string, explicitDate?: string) {
     setSelectedDay(day)
     // derive the dateStr for the clicked day by finding the matching day in this week when explicit not supplied
     const resolved = explicitDate ?? (() => {
@@ -821,7 +821,7 @@ export default function Home() {
     const d = new Date(date)
     const day = (d.getDay() + 6) % 7 // Mon=0
     d.setDate(d.getDate() - day)
-    return d.toISOString().slice(0,10)
+    return d.toISOString().slice(0, 10)
   }
 
   function getWeekDates() {
@@ -849,7 +849,7 @@ export default function Home() {
     if (idx >= 0) next[idx] = { weekStart, weight }
     else next.unshift({ weekStart, weight })
     setWeeklyWeights(next)
-    try { localStorage.setItem('weeklyWeights', JSON.stringify(next)) } catch(e){console.warn(e)}
+    try { localStorage.setItem('weeklyWeights', JSON.stringify(next)) } catch (e) { console.warn(e) }
 
     // Try to POST to backend proxy; ignore errors
     try {
@@ -863,7 +863,7 @@ export default function Home() {
   function applyRecommendedSets(exercise: string, setsCount?: number) {
     const target = setsCount || recs[exercise]?.recommended_sets
     if (!target) return
-    setRows(prev => prev.map(r => r.exercise === exercise ? ({ ...r, setsCount: target, sets: Array.from({ length: target }, (_,i) => ({ set_number: i+1, weight: '', reps: '', intensity: 7 })) }) : r))
+    setRows(prev => prev.map(r => r.exercise === exercise ? ({ ...r, setsCount: target, sets: Array.from({ length: target }, (_, i) => ({ set_number: i + 1, weight: '', reps: '', intensity: 7 })) }) : r))
   }
 
   function acceptSubstitution(exercise: string, sub: string) {
@@ -881,7 +881,7 @@ export default function Home() {
     return null
   }
 
-  function roundToHundreds(n: number) { return Math.round(n/100)*100 }
+  function roundToHundreds(n: number) { return Math.round(n / 100) * 100 }
 
   function updateSet(exIndex: number, setIndex: number, patch: Partial<SetEntry>) {
     setRows((prev) => prev.map((r, i) => {
@@ -1060,7 +1060,7 @@ export default function Home() {
       const data = res.data
       if (data && data.recommendations) setRecs(data.recommendations as Record<string, Recommendation>)
       setSessionFinished(true)
-      const dateStr = new Date().toISOString().slice(0,10)
+      const dateStr = new Date().toISOString().slice(0, 10)
       markFinishedFor(dateStr)
       setRows((prev) => prev.map((r) => ({
         ...r,
@@ -1089,51 +1089,69 @@ export default function Home() {
   const topPRs = getTopPRs(4)
 
   return (
-    <div className="app-root" style={{ minHeight: '100vh', paddingBottom: 40 }}>
-      <div className="app-container">
-        <header className="glass-strong" style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'center', justifyContent: 'space-between' }}>
-          <div className="card-heading" style={{ gap: 14 }}>
-            <IconBarbell className="ui-icon" size={20} />
+    <div className="min-h-screen pb-10 relative">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 grid gap-6">
+        <header className="glass-card flex flex-wrap gap-6 items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-primary/10 rounded-xl">
+              <IconBarbell className="w-6 h-6 text-primary" />
+            </div>
             <div>
-              <h1 style={{ margin: 0, fontSize: 28 }}>Gym Tracker</h1>
-              <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>Weekly split, progressive overload, and fast session logging.</p>
+              <h1 className="text-3xl font-black tracking-tight text-white">Gym Tracker</h1>
+              <p className="text-sm text-slate-400">Weekly split, progressive overload, and fast session logging.</p>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-            <div className="badge">Week #{getWeekIndex()}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <label style={{ fontSize: 12, color: 'var(--muted)' }}>Body weight (kg)</label>
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/20">
+              Week #{getWeekIndex()}
+            </div>
+            <div className="flex items-center gap-3 bg-slate-900/50 p-2 rounded-xl border border-white/5">
+              <label className="text-xs text-slate-400 pl-2">Body weight (kg)</label>
               <input
                 type="number"
                 value={bodyWeight}
                 onChange={(e) => setBodyWeight(e.target.value === '' ? '' : Number(e.target.value))}
-                style={{ ...baseFieldStyle, width: 90 }}
+                className="w-20 bg-transparent border-b border-slate-700 text-center text-sm focus:outline-none focus:border-primary transition-colors"
+                placeholder="0.0"
               />
               <button
-                className="btn"
+                className="text-xs font-bold text-primary hover:text-primary/80 px-2"
                 onClick={() => {
                   if (bodyWeight === '') return
                   saveWeeklyWeight(Number(bodyWeight))
                 }}
               >Save</button>
             </div>
-            <button className="btn btn-ghost" onClick={flushInstrumentQueue}>Sync data</button>
-            <button
-              className="btn btn-ghost"
-              onClick={() => {
-                if (typeof window !== 'undefined') {
-                  const ok = window.confirm('Reset planner data for the current week? This clears unfinished progress and reseeds targets.')
-                  if (!ok) return
-                }
-                resetPlannerState()
-              }}
-            >Reset planner</button>
-            <button
-              className="btn btn-ghost"
-              onClick={() => setShowSettings(true)}
-              style={{ fontWeight: 'bold' }}
-            >⚙️ Settings</button>
+
+            <div className="flex gap-2">
+              <button className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors" onClick={flushInstrumentQueue} title="Sync data">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                </svg>
+              </button>
+              <button
+                className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    const ok = window.confirm('Reset planner data for the current week? This clears unfinished progress and reseeds targets.')
+                    if (!ok) return
+                  }
+                  resetPlannerState()
+                }}
+                title="Reset planner"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                </svg>
+              </button>
+              <button
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold transition-all border border-white/5"
+                onClick={() => setShowSettings(true)}
+              >
+                <span>⚙️</span> Settings
+              </button>
+            </div>
           </div>
         </header>
 
@@ -1158,24 +1176,24 @@ export default function Home() {
         )}
 
         {celebrateMilestone ? (
-          <div className="glass" style={{ padding: 16, border: '1px solid rgba(255,255,255,0.2)' }}>
-            <div style={{ fontSize: 15, fontWeight: 800 }}>🔥 Streak milestone unlocked!</div>
-            <div style={{ fontSize: 13, marginTop: 6 }}>You just hit a {celebrateMilestone}-day streak. Keep the momentum.</div>
+          <div className="glass-card border-l-4 border-l-yellow-500 bg-yellow-500/10">
+            <div className="text-lg font-bold text-yellow-400">🔥 Streak milestone unlocked!</div>
+            <div className="text-sm text-slate-300 mt-1">You just hit a {celebrateMilestone}-day streak. Keep the momentum.</div>
           </div>
         ) : null}
 
-        <section className="glass" style={{ padding: 20, display: 'grid', gap: 16 }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <div className="card-heading">
-              <IconCalendarSpark className="ui-icon" />
-              <div>
-                <div className="title">Weekly planner</div>
-                <div className="subtitle">Tap a day to jump into the session builder.</div>
-              </div>
+        <section className="glass-card space-y-6">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-2 bg-accent/10 rounded-lg">
+              <IconCalendarSpark className="w-5 h-5 text-accent" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white">Weekly planner</h2>
+              <p className="text-sm text-slate-400">Tap a day to jump into the session builder.</p>
             </div>
           </div>
 
-          <div className="week-grid">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
             {weekDates.map((date) => {
               const dateStr = date.toISOString().slice(0, 10)
               const dayIndex = (date.getDay() + 6) % 7
@@ -1188,74 +1206,112 @@ export default function Home() {
                 <button
                   key={`${dateStr}-${dayType}`}
                   onClick={() => openDay(dayType, dateStr)}
-                  className={`week-card ${isSelected ? 'active' : ''}`}
-                  style={{
-                    textAlign: 'left',
-                    position: 'relative',
-                  }}
+                  className={`relative p-4 rounded-2xl border transition-all duration-200 text-left group ${isSelected
+                      ? 'bg-primary/10 border-primary/50 shadow-[0_0_20px_rgba(244,63,94,0.2)]'
+                      : 'bg-slate-900/40 border-white/5 hover:bg-slate-800/60 hover:border-white/10 hover:-translate-y-1'
+                    }`}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="flex justify-between items-start mb-3">
                     <div>
-                      <div style={{ fontSize: 12, color: 'var(--muted)' }}>{date.toLocaleDateString(undefined, { weekday: 'short' })}</div>
-                      <div style={{ fontSize: 20, fontWeight: 800 }}>{date.getDate()}</div>
+                      <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">{date.toLocaleDateString(undefined, { weekday: 'short' })}</div>
+                      <div className="text-2xl font-black text-white mt-1">{date.getDate()}</div>
                     </div>
-                    <div style={{ fontSize: 12, textAlign: 'right', color: 'var(--muted)' }}>{dayType}</div>
+                    {isToday && <div className="text-[10px] font-bold bg-accent/20 text-accent px-2 py-0.5 rounded-full">TODAY</div>}
                   </div>
-                  <div style={{ marginTop: 12, fontSize: 12, color: finished ? '#7fffab' : skipped ? '#ff9aa9' : 'var(--muted)' }}>
-                    {finished ? 'Finished ✅' : skipped ? 'Skipped' : (dayType === 'Rest' ? 'Recovery' : 'Pending')}
+
+                  <div className="text-sm font-medium text-slate-300 mb-2 truncate">{dayType}</div>
+
+                  <div className={`text-xs font-semibold flex items-center gap-1 ${finished ? 'text-green-400' : skipped ? 'text-red-400' : 'text-slate-500'
+                    }`}>
+                    {finished ? (
+                      <>
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                        Done
+                      </>
+                    ) : skipped ? 'Skipped' : (dayType === 'Rest' ? 'Recovery' : 'Pending')}
                   </div>
-                  {isToday ? <div style={{ position: 'absolute', top: 12, right: 12, fontSize: 11, color: 'var(--accent)' }}>Today</div> : null}
                 </button>
               )
             })}
           </div>
         </section>
 
-        <div className="two-column">
-          <section className="glass" style={{ padding: 22, display: 'grid', gap: 18 }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-              <div className="card-heading" style={{ marginBottom: 0 }}>
-                <IconBarbell className="ui-icon" />
+        <div className="grid lg:grid-cols-[1.8fr_1.1fr] gap-6">
+          <section className="glass-card space-y-6">
+            <div className="flex flex-wrap justify-between items-center gap-4 border-b border-white/5 pb-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-blue-500/10 rounded-xl">
+                  <IconBarbell className="w-6 h-6 text-blue-400" />
+                </div>
                 <div>
-                  <div className="title">{selectedDay}</div>
-                  <div className="subtitle">{selectedDateLabel}</div>
+                  <h2 className="text-2xl font-bold text-white">{selectedDay}</h2>
+                  <div className="text-sm text-slate-400">{selectedDateLabel}</div>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                {selectedDay !== 'Rest' ? (
-                  <button className="btn btn-ghost" style={{ padding: '6px 12px' }} onClick={() => fetchRecommendations(rows)}>Refresh recs</button>
-                ) : null}
-                {selectedDay !== 'Rest' ? (
-                  confirmSkipFor === selectedDay ? (
-                    <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <span style={{ fontSize: 12, color: 'var(--muted)' }}>Skip session?</span>
-                      <button className="btn" style={{ padding: '6px 12px', background: '#ff9aa9', color: '#032031' }} onClick={handleSkipSession}>Yes</button>
-                      <button className="btn btn-ghost" style={{ padding: '6px 12px' }} onClick={() => setConfirmSkipFor(null)}>No</button>
-                    </span>
-                  ) : (
-                    <button className="btn btn-ghost" style={{ padding: '6px 12px' }} onClick={() => setConfirmSkipFor(selectedDay)}>Skip</button>
-                  )
-                ) : null}
+
+              <div className="flex gap-3 items-center">
+                {selectedDay !== 'Rest' && (
+                  <>
+                    <button
+                      className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition-colors"
+                      onClick={() => fetchRecommendations(rows)}
+                    >
+                      Refresh recs
+                    </button>
+                    {confirmSkipFor === selectedDay ? (
+                      <div className="flex items-center gap-2 bg-red-500/10 px-3 py-1.5 rounded-xl border border-red-500/20">
+                        <span className="text-xs text-red-300">Skip?</span>
+                        <button className="text-xs font-bold text-red-400 hover:text-red-300" onClick={handleSkipSession}>Yes</button>
+                        <div className="w-px h-3 bg-red-500/20"></div>
+                        <button className="text-xs text-slate-400 hover:text-slate-300" onClick={() => setConfirmSkipFor(null)}>No</button>
+                      </div>
+                    ) : (
+                      <button
+                        className="px-4 py-2 rounded-xl hover:bg-red-500/10 text-slate-400 hover:text-red-400 text-sm font-medium transition-colors"
+                        onClick={() => setConfirmSkipFor(selectedDay)}
+                      >
+                        Skip
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
             </div>
 
             {selectedDay === 'Rest' ? (
-              <div className="empty-state">
-                Use today for mobility, hydration, and sleep. You can still log a mobility session if you like.
+              <div className="p-8 rounded-2xl border-2 border-dashed border-slate-800 bg-slate-900/30 text-center">
+                <div className="text-4xl mb-4">🧘</div>
+                <h3 className="text-lg font-bold text-white mb-2">Rest & Recovery</h3>
+                <p className="text-slate-400 max-w-md mx-auto">Use today for mobility, hydration, and sleep. You can still log a mobility session if you like.</p>
               </div>
             ) : (
               <>
                 {!sessionActive ? (
-                  <div className="subtle-grid">
-                    <div style={{ fontSize: 13, color: 'var(--muted)' }}>Plan your sets, tune targets, and log everything when you wrap the session.</div>
-                    <div className="session-actions">
-                      <button className="btn" onClick={startSession} disabled={selectedDay === 'Rest'}>Start session</button>
-                      {sessionFinished ? <div className="badge" style={{ background: 'rgba(127,255,171,0.18)', color: '#7fffab' }}>Session completed</div> : null}
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <IconBarbell className="w-8 h-8 text-primary" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Ready to workout?</h3>
+                    <p className="text-slate-400 mb-8 max-w-sm mx-auto">Plan your sets, tune targets, and log everything when you wrap the session.</p>
+                    <div className="flex justify-center gap-4">
+                      <button
+                        className="glass-button text-lg"
+                        onClick={startSession}
+                        disabled={selectedDay === 'Rest'}
+                      >
+                        Start Session
+                      </button>
+                      {sessionFinished && (
+                        <div className="px-4 py-3 rounded-xl bg-green-500/10 text-green-400 font-bold border border-green-500/20 flex items-center gap-2">
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          Completed
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
-                  <>
-                    <div style={{ display: 'grid', gap: 14 }}>
+                  <div className="space-y-6">
+                    <div className="space-y-4">
                       {rows.map((row, exIndex) => {
                         const rec = recs[row.exercise]
                         const ai = rec?.ai
@@ -1263,16 +1319,17 @@ export default function Home() {
                         const displayExercise = acceptedSubs[row.exercise] || row.exercise
                         const poTarget = poTargets[row.exercise] ?? ''
                         return (
-                          <div key={row.exercise} className="glass" style={{ padding: 18, border: '1px solid rgba(255,255,255,0.08)' }}>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 }}>
+                          <div key={row.exercise} className="bg-slate-900/50 rounded-2xl border border-white/5 overflow-hidden">
+                            <div className="p-4 border-b border-white/5 flex flex-wrap justify-between gap-4 bg-slate-800/30">
                               <div>
-                                <div style={{ fontWeight: 800, fontSize: 15 }}>{displayExercise}</div>
-                                <div style={{ fontSize: 12, color: 'var(--muted)' }}>Target {computePoReps(row.exercise)} reps</div>
-                                <div style={{ marginTop: 6, display: 'inline-flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                                  <span className="badge" style={{ background: 'rgba(255,70,120,0.18)', color: '#ffb8c8' }}>PO goal {poTarget || 0} kg/week</span>
+                                <div className="font-bold text-white text-lg">{displayExercise}</div>
+                                <div className="text-sm text-slate-400 mt-1">Target {computePoReps(row.exercise)} reps</div>
+                                <div className="mt-2 flex items-center gap-3">
+                                  <span className="px-2 py-1 rounded-lg bg-pink-500/10 text-pink-400 text-xs font-bold border border-pink-500/20">
+                                    PO goal {poTarget || 0} kg/week
+                                  </span>
                                   <button
-                                    className="btn btn-ghost"
-                                    style={{ padding: '4px 10px', fontSize: 11 }}
+                                    className="text-xs text-slate-400 hover:text-white underline decoration-slate-600 hover:decoration-white"
                                     onClick={() => {
                                       if (typeof window === 'undefined') return
                                       const next = window.prompt('Update PO target (kg/week)', String(poTarget || 0))
@@ -1283,39 +1340,47 @@ export default function Home() {
                                   >Edit</button>
                                 </div>
                               </div>
-                              <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--muted)' }}>
-                                {ai ? `AI confidence: ${aiConfidenceLabel(ai)}` : 'Awaiting data'}
+                              <div className="text-right">
+                                <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">AI Insight</div>
+                                <div className="text-sm text-slate-300">
+                                  {ai ? aiConfidenceLabel(ai) : 'Awaiting data'}
+                                </div>
                               </div>
                             </div>
 
                             {rec?.substitutions && rec.substitutions.length ? (
-                              <div style={{ marginTop: 10, fontSize: 12, color: 'var(--muted)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                              <div className="px-4 py-2 bg-slate-950/30 border-b border-white/5 flex gap-2 overflow-x-auto">
+                                <span className="text-xs text-slate-500 py-1">Alternates:</span>
                                 {rec.substitutions.map((sub) => (
                                   <button
                                     key={sub}
-                                    className={acceptedSubs[row.exercise] === sub ? 'btn' : 'btn btn-ghost'}
-                                    style={{ padding: '4px 10px', fontSize: 12 }}
+                                    className={`text-xs px-2 py-1 rounded-lg transition-colors whitespace-nowrap ${acceptedSubs[row.exercise] === sub
+                                        ? 'bg-primary/20 text-primary font-bold'
+                                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                                      }`}
                                     onClick={() => acceptSubstitution(row.exercise, sub)}
                                   >{sub}</button>
                                 ))}
                               </div>
                             ) : null}
 
-                            <div style={{ marginTop: 14, display: 'grid', gap: 10 }}>
+                            <div className="p-4 space-y-3">
                               {row.sets.map((set, setIndex) => {
                                 const suggested = computePoSuggestion(row.exercise, set.set_number, row.setsCount)
                                 const idealSuggested = computeIdealPoSuggestion(row.exercise, set.set_number, row.setsCount)
                                 return (
-                                  <div key={`${row.exercise}-set-${set.set_number}`} style={{ display: 'grid', gridTemplateColumns: '80px repeat(2, minmax(0, 1fr))', gap: 12 }}>
-                                    <div style={{ fontSize: 12, color: 'var(--muted)', paddingTop: 4 }}>Set {set.set_number}</div>
-                                    <div style={{ display: 'grid', gap: 6 }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)' }}>
-                                        <span>Weight (kg)</span>
+                                  <div key={`${row.exercise}-set-${set.set_number}`} className="grid grid-cols-[60px_1fr_1fr] gap-4 items-start">
+                                    <div className="pt-3 text-xs font-bold text-slate-500 uppercase">Set {set.set_number}</div>
+
+                                    <div className="space-y-1">
+                                      <div className="flex justify-between text-[10px] text-slate-400 uppercase font-bold px-1">
+                                        <span>Kg</span>
                                         <button
-                                          className="btn btn-ghost"
-                                          style={{ padding: '4px 10px', fontSize: 11 }}
+                                          className="text-primary hover:text-primary/80"
                                           onClick={() => updateSet(exIndex, setIndex, { weight: suggested })}
-                                        >Use suggestion</button>
+                                        >
+                                          Use {suggested}
+                                        </button>
                                       </div>
                                       <input
                                         type="number"
@@ -1325,11 +1390,12 @@ export default function Home() {
                                           const val = e.target.value
                                           updateSet(exIndex, setIndex, { weight: val === '' ? '' : Number(val) })
                                         }}
-                                        style={baseFieldStyle}
+                                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
                                       />
                                     </div>
-                                    <div style={{ display: 'grid', gap: 6 }}>
-                                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>Reps</div>
+
+                                    <div className="space-y-1">
+                                      <div className="text-[10px] text-slate-400 uppercase font-bold px-1">Reps</div>
                                       <input
                                         type="number"
                                         placeholder={String(computePoReps(row.exercise))}
@@ -1338,27 +1404,35 @@ export default function Home() {
                                           const val = e.target.value
                                           updateSet(exIndex, setIndex, { reps: val === '' ? '' : Number(val) })
                                         }}
-                                        style={baseFieldStyle}
+                                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
                                       />
                                     </div>
-                                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', gridColumn: '1 / -1' }}>
+
+                                    <div className="col-span-3 flex gap-2 justify-end pt-1">
                                       <button
-                                        className={`btn btn-ghost${set.feedback === 'too_hard' ? ' active' : ''}`}
-                                        style={{ padding: '6px 10px', borderColor: set.feedback === 'too_hard' ? 'rgba(255,51,87,0.6)' : undefined, background: set.feedback === 'too_hard' ? 'rgba(255,51,87,0.18)' : undefined, color: set.feedback === 'too_hard' ? '#ffadb9' : undefined }}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${set.feedback === 'too_hard'
+                                            ? 'bg-red-500/20 border-red-500/50 text-red-400'
+                                            : 'border-transparent text-slate-500 hover:bg-slate-800'
+                                          }`}
                                         onClick={() => handleSetFeedback(exIndex, setIndex, 'too_hard')}
                                       >Too hard</button>
                                       <button
-                                        className={`btn btn-ghost${set.feedback === 'on_target' ? ' active' : ''}`}
-                                        style={{ padding: '6px 10px', borderColor: set.feedback === 'on_target' ? 'rgba(255,255,255,0.24)' : undefined, background: set.feedback === 'on_target' ? 'rgba(255,255,255,0.08)' : undefined }}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${set.feedback === 'on_target'
+                                            ? 'bg-blue-500/20 border-blue-500/50 text-blue-400'
+                                            : 'border-transparent text-slate-500 hover:bg-slate-800'
+                                          }`}
                                         onClick={() => handleSetFeedback(exIndex, setIndex, 'on_target')}
                                       >On target</button>
                                       <button
-                                        className={`btn btn-ghost${set.feedback === 'too_easy' ? ' active' : ''}`}
-                                        style={{ padding: '6px 10px', borderColor: set.feedback === 'too_easy' ? 'rgba(110,255,180,0.6)' : undefined, background: set.feedback === 'too_easy' ? 'rgba(110,255,180,0.18)' : undefined, color: set.feedback === 'too_easy' ? '#b4ffdd' : undefined }}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${set.feedback === 'too_easy'
+                                            ? 'bg-green-500/20 border-green-500/50 text-green-400'
+                                            : 'border-transparent text-slate-500 hover:bg-slate-800'
+                                          }`}
                                         onClick={() => handleSetFeedback(exIndex, setIndex, 'too_easy')}
                                       >Too easy</button>
                                     </div>
-                                    <div style={{ gridColumn: '1 / -1', fontSize: 11, color: 'var(--muted)' }}>
+
+                                    <div className="col-span-3 text-[10px] text-slate-500 text-right px-1">
                                       Suggested: {suggested} kg • Stretch goal: {idealSuggested} kg
                                     </div>
                                   </div>
@@ -1366,51 +1440,65 @@ export default function Home() {
                               })}
                             </div>
 
-                            <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
-                              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                                <span style={{ fontSize: 12, color: 'var(--muted)' }}>Sets</span>
-                                <button className="btn btn-ghost" style={{ padding: '2px 8px' }} onClick={() => updateSetsCount(exIndex, row.setsCount - 1)}>-</button>
-                                <span style={{ fontSize: 12 }}>{row.setsCount}</span>
-                                <button className="btn btn-ghost" style={{ padding: '2px 8px' }} onClick={() => updateSetsCount(exIndex, row.setsCount + 1)}>+</button>
+                            <div className="bg-slate-950/30 p-3 border-t border-white/5 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-slate-500 uppercase">Sets</span>
+                                <div className="flex items-center bg-slate-800 rounded-lg p-1">
+                                  <button className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded" onClick={() => updateSetsCount(exIndex, row.setsCount - 1)}>-</button>
+                                  <span className="w-8 text-center text-sm font-bold text-white">{row.setsCount}</span>
+                                  <button className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded" onClick={() => updateSetsCount(exIndex, row.setsCount + 1)}>+</button>
+                                </div>
                                 {rec?.recommended_sets ? (
-                                  <button className="btn btn-ghost" style={{ padding: '4px 10px' }} onClick={() => applyRecommendedSets(row.exercise, rec.recommended_sets)}>Apply {rec.recommended_sets}</button>
+                                  <button className="text-xs text-primary hover:underline ml-2" onClick={() => applyRecommendedSets(row.exercise, rec.recommended_sets)}>Apply {rec.recommended_sets}</button>
                                 ) : null}
                               </div>
-                              {rule?.note ? <div style={{ fontSize: 11, color: 'var(--muted)' }}>{rule.note}</div> : null}
+                              {rule?.note ? <div className="text-xs text-slate-400 italic">{rule.note}</div> : null}
                             </div>
                           </div>
                         )
                       })}
                     </div>
 
-                    <div className="session-actions" style={{ marginTop: 12 }}>
-                      <button className="btn" style={{ background: '#7fffab', color: '#032031' }} onClick={finishSession} disabled={submitting}>Log session</button>
-                      <button className="btn btn-ghost" onClick={() => setSessionActive(false)}>Close</button>
+                    <div className="flex gap-4 pt-4 border-t border-white/5">
+                      <button
+                        className="flex-1 glass-button bg-gradient-to-r from-green-500 to-emerald-600 shadow-green-500/20"
+                        onClick={finishSession}
+                        disabled={submitting}
+                      >
+                        {submitting ? 'Saving...' : 'Log Session'}
+                      </button>
+                      <button
+                        className="px-6 rounded-xl border border-white/10 hover:bg-white/5 text-slate-300 font-bold transition-colors"
+                        onClick={() => setSessionActive(false)}
+                      >
+                        Close
+                      </button>
                     </div>
-                  </>
+                  </div>
                 )}
               </>
             )}
           </section>
 
-          <aside className="aside-grid">
-            <div className="glass" style={{ padding: 18, display: 'grid', gap: 12 }}>
-              <div className="card-heading">
-                <IconWave className="ui-icon" />
+          <aside className="space-y-6">
+            <div className="glass-card">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-cyan-500/10 rounded-lg">
+                  <IconWave className="w-5 h-5 text-cyan-400" />
+                </div>
                 <div>
-                  <div className="title">Weight trend</div>
-                  <div className="subtitle">Latest weigh-in: {latestWeight ?? '—'} kg</div>
+                  <h3 className="font-bold text-white">Weight trend</h3>
+                  <div className="text-xs text-slate-400">Latest: {latestWeight ?? '—'} kg</div>
                 </div>
               </div>
-              <div style={{ height: 84 }}>
-                <svg width="100%" height="84" viewBox="0 0 320 84">
+              <div className="h-24 w-full bg-slate-950/50 rounded-xl border border-white/5 overflow-hidden relative">
+                <svg width="100%" height="100%" viewBox="0 0 320 84" preserveAspectRatio="none">
                   <defs>
                     <linearGradient id="weight-gradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="rgba(126,202,255,0.8)" />
-                      <stop offset="100%" stopColor="rgba(126,202,255,0)" />
+                      <stop offset="0%" stopColor="rgba(34, 211, 238, 0.5)" />
+                      <stop offset="100%" stopColor="rgba(34, 211, 238, 0)" />
                     </linearGradient>
                   </defs>
-                  <rect x={0} y={0} width={320} height={84} rx={10} fill="rgba(255,255,255,0.03)" />
                   {(() => {
                     const raw = weeklyWeights.slice(0, 16).map((w) => Number(w.weight)).filter((w) => !Number.isNaN(w))
                     const safe = raw.length ? raw : (latestWeight ? [latestWeight] : [])
@@ -1418,28 +1506,35 @@ export default function Home() {
                     const n = safe.length
                     const min = Math.min(...safe)
                     const max = Math.max(...safe)
-                    const toX = (i: number) => (n === 1 ? 160 : Math.round((i / (n - 1)) * 300) + 10)
+                    const toX = (i: number) => (n === 1 ? 160 : Math.round((i / (n - 1)) * 320))
                     const toY = (v: number) => {
                       if (max === min) return 42
                       const pct = (v - min) / (max - min)
-                      return Math.round((1 - pct) * 64) + 10
+                      return Math.round((1 - pct) * 60) + 12
                     }
                     const path = safe.map((p, i) => `${i === 0 ? 'M' : 'L'} ${toX(i)} ${toY(p)}`).join(' ')
-                    return <path d={path} fill="none" stroke="url(#weight-gradient)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+                    return (
+                      <>
+                        <path d={`${path} L 320 84 L 0 84 Z`} fill="url(#weight-gradient)" opacity="0.3" />
+                        <path d={path} fill="none" stroke="#22d3ee" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+                      </>
+                    )
                   })()}
                 </svg>
               </div>
             </div>
 
-            <div className="glass" style={{ padding: 18, display: 'grid', gap: 12 }}>
-              <div className="card-heading">
-                <IconGauge className="ui-icon" />
+            <div className="glass-card">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-orange-500/10 rounded-lg">
+                  <IconGauge className="w-5 h-5 text-orange-400" />
+                </div>
                 <div>
-                  <div className="title">Calories</div>
-                  <div className="subtitle">Target ~{calorieTarget} kcal</div>
+                  <h3 className="font-bold text-white">Calories</h3>
+                  <div className="text-xs text-slate-400">Target ~{calorieTarget} kcal</div>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div className="flex items-center gap-2">
                 <input
                   type="number"
                   value={caloriesToday}
@@ -1457,10 +1552,10 @@ export default function Home() {
                     }
                   }}
                   placeholder="Today"
-                  style={{ ...baseFieldStyle, width: 120 }}
+                  className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-primary outline-none"
                 />
                 <button
-                  className="btn"
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-white transition-colors"
                   onClick={() => {
                     if (typeof caloriesToday === 'number') {
                       const dateStr = selectedDateStr || todayIso
@@ -1469,48 +1564,65 @@ export default function Home() {
                   }}
                 >Save</button>
               </div>
-              <div style={{ fontSize: 12, color: 'var(--muted)' }}>Avg last 7d: {averageCalories ? Math.round(averageCalories) : '—'} kcal</div>
+              <div className="mt-2 text-xs text-slate-500 text-center">Avg last 7d: {averageCalories ? Math.round(averageCalories) : '—'} kcal</div>
             </div>
 
-            <div className="glass" style={{ padding: 18, display: 'grid', gap: 8 }}>
-              <div className="card-heading">
-                <IconStreak className="ui-icon" />
+            <div className="glass-card">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-purple-500/10 rounded-lg">
+                  <IconStreak className="w-5 h-5 text-purple-400" />
+                </div>
                 <div>
-                  <div className="title">Streak</div>
-                  <div className="subtitle">Consistency unlocks progress</div>
+                  <h3 className="font-bold text-white">Streak</h3>
+                  <div className="text-xs text-slate-400">Consistency unlocks progress</div>
                 </div>
               </div>
-              <div style={{ fontSize: 12 }}>Current <strong>{streakCurrent}</strong> • Best <strong>{streakBest}</strong></div>
-              <div style={{ fontSize: 11, color: 'var(--muted)' }}>Last missed: {getLastMissedDate() || 'None in 30 days'}</div>
+              <div className="flex justify-between items-center bg-slate-950/50 p-3 rounded-xl border border-white/5">
+                <div className="text-center">
+                  <div className="text-2xl font-black text-white">{streakCurrent}</div>
+                  <div className="text-[10px] uppercase font-bold text-slate-500">Current</div>
+                </div>
+                <div className="w-px h-8 bg-white/10"></div>
+                <div className="text-center">
+                  <div className="text-2xl font-black text-slate-400">{streakBest}</div>
+                  <div className="text-[10px] uppercase font-bold text-slate-500">Best</div>
+                </div>
+              </div>
+              <div className="mt-2 text-xs text-slate-500 text-center">Last missed: {getLastMissedDate() || 'None in 30 days'}</div>
             </div>
 
-            <div className="glass" style={{ padding: 18, display: 'grid', gap: 10 }}>
-              <div className="card-heading">
-                <IconTrophy className="ui-icon" />
+            <div className="glass-card">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-yellow-500/10 rounded-lg">
+                  <IconTrophy className="w-5 h-5 text-yellow-400" />
+                </div>
                 <div>
-                  <div className="title">PR highlights</div>
-                  <div className="subtitle">Auto-updates from session logs</div>
+                  <h3 className="font-bold text-white">PR highlights</h3>
+                  <div className="text-xs text-slate-400">Auto-updates from logs</div>
                 </div>
               </div>
               {topPRs.length ? (
-                <ul className="list-reset">
+                <ul className="space-y-3">
                   {topPRs.map((pr) => (
-                    <li key={pr.exercise} style={{ marginBottom: 4 }}>
-                      <strong style={{ color: 'var(--accent-2)' }}>{pr.exercise}</strong> {pr.weight} kg
+                    <li key={pr.exercise} className="flex justify-between items-center text-sm border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                      <span className="font-medium text-slate-300">{pr.exercise}</span>
+                      <span className="font-bold text-yellow-400">{pr.weight} kg</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <div className="empty-state" style={{ padding: 14 }}>Log more sessions to see PRs here.</div>
+                <div className="text-center py-4 text-xs text-slate-500 italic">Log more sessions to see PRs here.</div>
               )}
             </div>
 
-            <div className="glass" style={{ padding: 18, display: 'grid', gap: 10 }}>
-              <div className="card-heading">
-                <IconTarget className="ui-icon" />
+            <div className="glass-card">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-teal-500/10 rounded-lg">
+                  <IconTarget className="w-5 h-5 text-teal-400" />
+                </div>
                 <div>
-                  <div className="title">Ideal target</div>
-                  <div className="subtitle">Long-term bodyweight goal</div>
+                  <h3 className="font-bold text-white">Ideal target</h3>
+                  <div className="text-xs text-slate-400">Long-term bodyweight goal</div>
                 </div>
               </div>
               <input
@@ -1522,7 +1634,8 @@ export default function Home() {
                   setIdealWeightGoal(parsed)
                   try { localStorage.setItem('idealWeightGoal', val) } catch (err) { console.warn('idealWeight persist failed', err) }
                 }}
-                style={{ ...baseFieldStyle, width: 120 }}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-primary outline-none"
+                placeholder="Target kg"
               />
             </div>
 

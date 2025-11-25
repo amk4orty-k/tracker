@@ -32,56 +32,35 @@ export default function Login() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 100%)',
-    }}>
-      <div style={{
-        background: 'rgba(20, 20, 20, 0.95)',
-        border: '1px solid rgba(220, 20, 60, 0.3)',
-        borderRadius: '12px',
-        padding: '2rem',
-        maxWidth: '400px',
-        width: '100%',
-        boxShadow: '0 8px 32px rgba(220, 20, 60, 0.2)',
-      }}>
-        <h1 style={{
-          fontSize: '2rem',
-          fontWeight: 'bold',
-          textAlign: 'center',
-          color: '#dc143c',
-          marginBottom: '1.5rem',
-        }}>
-          {isSignUp ? 'Sign Up' : 'Log In'}
+    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[100px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-accent/20 rounded-full blur-[100px]" />
+      </div>
+
+      <div className="glass-card w-full max-w-md relative z-10">
+        <h1 className="text-4xl font-black text-center mb-8 tracking-tight">
+          <span className="text-gradient">{isSignUp ? 'Join Us' : 'Welcome Back'}</span>
         </h1>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', color: '#ccc', marginBottom: '0.5rem' }}>
-              Email
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-2">
+              Email Address
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                background: 'rgba(0, 0, 0, 0.5)',
-                border: '1px solid rgba(220, 20, 60, 0.3)',
-                borderRadius: '6px',
-                color: '#fff',
-                outline: 'none',
-              }}
+              className="glass-input w-full text-white placeholder-slate-500"
+              placeholder="you@example.com"
             />
           </div>
 
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', color: '#ccc', marginBottom: '0.5rem' }}>
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-2">
               Password
             </label>
             <input
@@ -90,28 +69,16 @@ export default function Login() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                background: 'rgba(0, 0, 0, 0.5)',
-                border: '1px solid rgba(220, 20, 60, 0.3)',
-                borderRadius: '6px',
-                color: '#fff',
-                outline: 'none',
-              }}
+              className="glass-input w-full text-white placeholder-slate-500"
+              placeholder="••••••••"
             />
           </div>
 
           {error && (
-            <div style={{
-              padding: '0.75rem',
-              marginBottom: '1rem',
-              background: error.includes('Check your email') ? 'rgba(34, 139, 34, 0.2)' : 'rgba(220, 20, 60, 0.2)',
-              border: `1px solid ${error.includes('Check your email') ? 'rgba(34, 139, 34, 0.4)' : 'rgba(220, 20, 60, 0.4)'}`,
-              borderRadius: '6px',
-              color: '#fff',
-              fontSize: '0.9rem',
-            }}>
+            <div className={`p-4 rounded-xl text-sm font-medium ${error.includes('Check your email')
+                ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                : 'bg-red-500/10 text-red-400 border border-red-500/20'
+              }`}>
               {error}
             </div>
           )}
@@ -119,48 +86,35 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              background: loading ? 'rgba(220, 20, 60, 0.5)' : '#dc143c',
-              border: 'none',
-              borderRadius: '6px',
-              color: '#fff',
-              fontWeight: 'bold',
-              fontSize: '1rem',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.3s',
-            }}
-            onMouseOver={(e) => !loading && (e.currentTarget.style.background = '#ff1744')}
-            onMouseOut={(e) => !loading && (e.currentTarget.style.background = '#dc143c')}
+            className="glass-button w-full disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Processing...' : isSignUp ? 'Sign Up' : 'Log In'}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Processing...
+              </span>
+            ) : (
+              isSignUp ? 'Create Account' : 'Sign In'
+            )}
           </button>
         </form>
 
-        <div style={{
-          marginTop: '1.5rem',
-          textAlign: 'center',
-          color: '#888',
-        }}>
-          {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-          <button
-            onClick={() => {
-              setIsSignUp(!isSignUp);
-              setError('');
-            }}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#dc143c',
-              cursor: 'pointer',
-              textDecoration: 'underline',
-              padding: 0,
-              font: 'inherit',
-            }}
-          >
-            {isSignUp ? 'Log in' : 'Sign up'}
-          </button>
+        <div className="mt-8 text-center">
+          <p className="text-slate-400 text-sm">
+            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <button
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setError('');
+              }}
+              className="text-primary hover:text-primary/80 font-semibold transition-colors"
+            >
+              {isSignUp ? 'Log in' : 'Sign up'}
+            </button>
+          </p>
         </div>
       </div>
     </div>

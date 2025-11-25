@@ -18,14 +18,14 @@ interface SettingsPanelProps {
 }
 
 const THEME_COLORS = [
-  { name: 'Crimson', hue: 348, color: '#ff2f54' },
-  { name: 'Electric Blue', hue: 200, color: '#00bfff' },
-  { name: 'Purple', hue: 280, color: '#ba55d3' },
-  { name: 'Emerald', hue: 140, color: '#50c878' },
-  { name: 'Orange', hue: 30, color: '#ff8c42' },
-  { name: 'Pink', hue: 320, color: '#ff69b4' },
-  { name: 'Cyan', hue: 180, color: '#00e5ff' },
-  { name: 'Lime', hue: 75, color: '#32cd32' },
+  { name: 'Crimson', color: '#f43f5e' },
+  { name: 'Electric Blue', color: '#0ea5e9' },
+  { name: 'Purple', color: '#a855f7' },
+  { name: 'Emerald', color: '#10b981' },
+  { name: 'Orange', color: '#f97316' },
+  { name: 'Pink', color: '#ec4899' },
+  { name: 'Cyan', color: '#06b6d4' },
+  { name: 'Lime', color: '#84cc16' },
 ]
 
 export default function SettingsPanel({ onClose, onProfileUpdate }: SettingsPanelProps) {
@@ -36,7 +36,7 @@ export default function SettingsPanel({ onClose, onProfileUpdate }: SettingsPane
     ideal_weight_kg: 85,
     age: 25,
     sex: 'male',
-    theme_color: '#ff2f54'
+    theme_color: '#f43f5e'
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -49,7 +49,7 @@ export default function SettingsPanel({ onClose, onProfileUpdate }: SettingsPane
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.access_token) return
-      
+
       const headers = { Authorization: `Bearer ${session.access_token}` }
       const res = await axios.get('/api/profile_proxy', { headers })
       setProfile(res.data)
@@ -66,7 +66,7 @@ export default function SettingsPanel({ onClose, onProfileUpdate }: SettingsPane
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.access_token) return
-      
+
       const headers = { Authorization: `Bearer ${session.access_token}` }
       await axios.put('/api/profile_proxy', profile, { headers })
       applyThemeColor(profile.theme_color)
@@ -80,13 +80,9 @@ export default function SettingsPanel({ onClose, onProfileUpdate }: SettingsPane
   }
 
   const applyThemeColor = (color: string) => {
-    const hue = colorToHue(color)
-    document.documentElement.style.setProperty('--theme-hue', hue.toString())
-  }
-
-  const colorToHue = (hex: string): number => {
-    const theme = THEME_COLORS.find(t => t.color === hex)
-    return theme?.hue || 348
+    document.documentElement.style.setProperty('--primary', color)
+    // Also update accent for consistency
+    document.documentElement.style.setProperty('--accent', color)
   }
 
   const handleLogout = async () => {
@@ -95,28 +91,11 @@ export default function SettingsPanel({ onClose, onProfileUpdate }: SettingsPane
     }
   }
 
-  const fieldStyle = {
-    background: 'rgba(8, 14, 26, 0.55)',
-    border: '1px solid rgba(255,255,255,0.14)',
-    borderRadius: '10px',
-    padding: '8px 10px',
-    color: '#ecf6ff',
-    fontSize: '13px',
-    width: '100%'
-  }
-
   if (loading) {
     return (
-      <div style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.8)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000
-      }}>
-        <div className="glass-strong" style={{ padding: '2rem', minWidth: '300px' }}>
+      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm">
+        <div className="glass-card p-8 min-w-[300px] text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
           Loading...
         </div>
       </div>
@@ -124,95 +103,75 @@ export default function SettingsPanel({ onClose, onProfileUpdate }: SettingsPane
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(0,0,0,0.8)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-      padding: '20px'
-    }} onClick={onClose}>
-      <div className="glass-strong" style={{
-        maxWidth: '500px',
-        width: '100%',
-        maxHeight: '90vh',
-        overflowY: 'auto',
-        padding: '24px'
-      }} onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Settings</h2>
-          <button onClick={onClose} style={{
-            background: 'transparent',
-            border: 'none',
-            color: '#fff',
-            fontSize: '24px',
-            cursor: 'pointer',
-            padding: '0',
-            lineHeight: '1'
-          }}>×</button>
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm p-4" onClick={onClose}>
+      <div
+        className="glass-card w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 relative"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-white">Settings</h2>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white text-2xl leading-none transition-colors"
+          >
+            ×
+          </button>
         </div>
 
-        <div style={{ display: 'grid', gap: '20px' }}>
+        <div className="space-y-6">
           {/* User Info */}
           <div>
-            <h3 style={{ fontSize: '1rem', marginBottom: '10px' }}>Account</h3>
-            <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.7)', marginBottom: '10px' }}>
+            <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Account</h3>
+            <div className="text-sm text-slate-400 mb-3 px-1">
               {user?.email}
             </div>
-            <button className="btn btn-ghost" onClick={handleLogout} style={{ width: '100%' }}>
+            <button
+              className="w-full py-2 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors text-sm font-bold"
+              onClick={handleLogout}
+            >
               Log Out
             </button>
           </div>
 
-          <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)' }} />
+          <div className="h-px bg-white/10"></div>
 
           {/* Current Profile */}
           <div>
-            <h3 style={{ fontSize: '1rem', marginBottom: '12px' }}>Current Profile</h3>
-            <div style={{ display: 'grid', gap: '12px' }}>
+            <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Current Profile</h3>
+            <div className="grid gap-4">
               <div>
-                <label style={{ display: 'block', fontSize: '12px', marginBottom: '6px', color: 'rgba(255,255,255,0.7)' }}>
-                  Current Weight (kg)
-                </label>
+                <label className="block text-xs text-slate-400 mb-1.5">Current Weight (kg)</label>
                 <input
                   type="number"
                   value={profile.current_weight_kg}
                   onChange={(e) => setProfile({ ...profile, current_weight_kg: Number(e.target.value) })}
-                  style={fieldStyle}
+                  className="glass-input w-full text-white"
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', marginBottom: '6px', color: 'rgba(255,255,255,0.7)' }}>
-                  Height (cm)
-                </label>
+                <label className="block text-xs text-slate-400 mb-1.5">Height (cm)</label>
                 <input
                   type="number"
                   value={profile.height_cm}
                   onChange={(e) => setProfile({ ...profile, height_cm: Number(e.target.value) })}
-                  style={fieldStyle}
+                  className="glass-input w-full text-white"
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', marginBottom: '6px', color: 'rgba(255,255,255,0.7)' }}>
-                  Age
-                </label>
+                <label className="block text-xs text-slate-400 mb-1.5">Age</label>
                 <input
                   type="number"
                   value={profile.age}
                   onChange={(e) => setProfile({ ...profile, age: Number(e.target.value) })}
-                  style={fieldStyle}
+                  className="glass-input w-full text-white"
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', marginBottom: '6px', color: 'rgba(255,255,255,0.7)' }}>
-                  Sex
-                </label>
+                <label className="block text-xs text-slate-400 mb-1.5">Sex</label>
                 <select
                   value={profile.sex}
                   onChange={(e) => setProfile({ ...profile, sex: e.target.value as 'male' | 'female' })}
-                  style={fieldStyle}
+                  className="glass-input w-full text-white bg-slate-900"
                 >
                   <option value="male">Male</option>
                   <option value="female">Female</option>
@@ -221,48 +180,35 @@ export default function SettingsPanel({ onClose, onProfileUpdate }: SettingsPane
             </div>
           </div>
 
-          <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)' }} />
+          <div className="h-px bg-white/10"></div>
 
           {/* Ideal Profile */}
           <div>
-            <h3 style={{ fontSize: '1rem', marginBottom: '12px' }}>Goal Weight</h3>
+            <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Goal Weight</h3>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', marginBottom: '6px', color: 'rgba(255,255,255,0.7)' }}>
-                Ideal Weight (kg)
-              </label>
+              <label className="block text-xs text-slate-400 mb-1.5">Ideal Weight (kg)</label>
               <input
                 type="number"
                 value={profile.ideal_weight_kg}
                 onChange={(e) => setProfile({ ...profile, ideal_weight_kg: Number(e.target.value) })}
-                style={fieldStyle}
+                className="glass-input w-full text-white"
               />
             </div>
           </div>
 
-          <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)' }} />
+          <div className="h-px bg-white/10"></div>
 
           {/* Theme Color */}
           <div>
-            <h3 style={{ fontSize: '1rem', marginBottom: '12px' }}>Theme Color</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+            <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Theme Color</h3>
+            <div className="grid grid-cols-4 gap-3">
               {THEME_COLORS.map((theme) => (
                 <button
                   key={theme.name}
                   onClick={() => setProfile({ ...profile, theme_color: theme.color })}
-                  style={{
-                    padding: '12px',
-                    borderRadius: '10px',
-                    border: profile.theme_color === theme.color ? '2px solid #fff' : '1px solid rgba(255,255,255,0.2)',
-                    background: theme.color,
-                    cursor: 'pointer',
-                    transition: 'transform 0.2s',
-                    fontSize: '10px',
-                    color: '#fff',
-                    fontWeight: 'bold',
-                    textShadow: '0 1px 2px rgba(0,0,0,0.5)'
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                  onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                  className={`p-3 rounded-xl text-[10px] font-bold text-white shadow-lg transition-all hover:scale-105 ${profile.theme_color === theme.color ? 'ring-2 ring-white scale-105' : 'ring-1 ring-white/20'
+                    }`}
+                  style={{ backgroundColor: theme.color }}
                 >
                   {theme.name}
                 </button>
@@ -271,10 +217,9 @@ export default function SettingsPanel({ onClose, onProfileUpdate }: SettingsPane
           </div>
 
           <button
-            className="btn"
+            className="glass-button w-full mt-4"
             onClick={saveProfile}
             disabled={saving}
-            style={{ width: '100%', marginTop: '10px' }}
           >
             {saving ? 'Saving...' : 'Save Profile'}
           </button>
